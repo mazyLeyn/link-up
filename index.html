@@ -2,89 +2,103 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Link-Up | Serverless</title>
+    <title>Link-Up | Hata Ayıklama Modu</title>
     <style>
-        :root { --bg: #0b141a; --accent: #00a884; --card: #202c33; --text: #e9edef; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; padding: 20px; }
-        .chat-card { width: 100%; max-width: 400px; background: var(--card); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
-        #display { height: 250px; overflow-y: auto; background: #111b21; padding: 10px; border-radius: 8px; font-size: 14px; border: 1px solid #313d45; }
-        textarea { width: 100%; height: 60px; background: #2a3942; color: #8696a0; border: 1px solid #313d45; border-radius: 8px; padding: 5px; font-size: 10px; resize: none; }
-        .btn { padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        .btn-primary { background: var(--accent); color: white; }
-        .btn-secondary { background: #0284c7; color: white; }
-        .status { font-size: 12px; text-align: center; color: #8696a0; }
-        .status.on { color: var(--accent); }
+        body { font-family: sans-serif; background: #0b141a; color: white; display: flex; justify-content: center; padding: 20px; }
+        .card { width: 100%; max-width: 400px; background: #202c33; padding: 20px; border-radius: 12px; }
+        textarea { width: 100%; height: 100px; background: #111b21; color: #00a884; border: 1px solid #313d45; padding: 10px; font-size: 11px; margin: 10px 0; }
+        .btn { width: 100%; padding: 12px; margin: 5px 0; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-offer { background: #0284c7; color: white; }
+        .btn-process { background: #00a884; color: white; }
+        #log { font-size: 12px; color: #8696a0; height: 100px; overflow-y: auto; border-top: 1px solid #313d45; pt: 10px; }
     </style>
 </head>
 <body>
 
-<div class="chat-card">
-    <h2 style="text-align:center; color:var(--accent)">Link-Up</h2>
-    <div id="status" class="status">Bağlantı Yok</div>
-    <div id="display"></div>
+<div class="card">
+    <h2 style="color:#00a884">Link-Up</h2>
+    <p style="font-size:12px">Durum: <span id="stat">Bekliyor...</span></p>
     
-    <div style="display:flex; gap:5px">
-        <input type="text" id="msg" placeholder="Mesaj..." style="flex:1; padding:8px; border-radius:8px; border:none; background:#2a3942; color:white">
-        <button class="btn btn-primary" onclick="send()">></button>
-    </div>
+    <button class="btn btn-offer" onclick="startOffer()">1. KOD ÜRET (TEKLİF)</button>
+    <textarea id="box" placeholder="Kod buraya gelecek veya yapıştırılacak..."></textarea>
+    <button class="btn btn-process" onclick="handleInput()">2. KODU İŞLE</button>
 
-    <hr style="border:0; border-top:1px solid #313d45">
-    
-    <div style="display:flex; flex-direction:column; gap:8px">
-        <button class="btn btn-secondary" id="startBtn" onclick="createOffer()">1. KOD ÜRET (TEKLİF)</button>
-        <textarea id="box" placeholder="Kodu buraya yapıştır..."></textarea>
-        <button class="btn btn-primary" id="processBtn" onclick="handleProcess()">2. KODU İŞLE / BAĞLAN</button>
-    </div>
+    <div id="log"><b>Sistem Günlüğü:</b><br></div>
 </div>
 
 <script>
-    let pc, dc;
-    const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+    let pc;
+    let dc;
 
-    function init() {
-        pc = new RTCPeerConnection(config);
+    // Log yazdırma fonksiyonu
+    function log(msg) {
+        const l = document.getElementById('log');
+        l.innerHTML += "> " + msg + "<br>";
+        l.scrollTop = l.scrollHeight;
+    }
+
+    function createPC() {
+        log("PeerConnection başlatılıyor...");
+        pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+        
         pc.onicecandidate = e => {
             if (!e.candidate) {
+                log("TÜM ADRESLER TOPLANDI. Kodu kopyalayabilirsiniz.");
                 document.getElementById('box').value = JSON.stringify(pc.localDescription);
-                alert("Kod oluşturuldu ve kutuya yazıldı. Kopyalayıp arkadaşına gönder!");
+            } else {
+                log("Adres bulundu: " + e.candidate.protocol);
             }
+        };
+
+        pc.oniceconnectionstatechange = () => {
+            document.getElementById('stat').innerText = pc.iceConnectionState;
+            log("Bağlantı Durumu: " + pc.iceConnectionState);
         };
     }
 
-    // A Kişisi: Teklif Başlatır
-    async function createOffer() {
-        init();
-        dc = pc.createDataChannel("chat");
-        setupDC();
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        document.getElementById('startBtn').disabled = true;
-    }
+    // A KİŞİSİ BAŞLATIR
+    async function startOffer() {
+        try {
+            createPC();
+            dc = pc.createDataChannel("chat");
+            dc.onopen = () => alert("BAĞLANDI! Mesaj yazabilirsiniz.");
+            dc.onmessage = e => log("ARKADAŞIN: " + e.data);
 
-    // B ve A Kişisi: Gelen Kodu İşler
-    async function handleProcess() {
-        const input = document.getElementById('box').value.trim();
-        if (!input) return;
-        const data = JSON.parse(input);
-
-        if (!pc) { // B Kişisi ise
-            init();
-            pc.ondatachannel = e => { dc = e.channel; setupDC(); };
-            await pc.setRemoteDescription(new RTCSessionDescription(data));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-        } else { // A Kişisi ise (Cevabı işler)
-            await pc.setRemoteDescription(new RTCSessionDescription(data));
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            log("Teklif oluşturuldu, adresler bekleniyor...");
+        } catch (err) {
+            log("HATA: " + err.message);
         }
     }
 
-    function setupDC() {
-        dc.onopen = () => {
-            document.getElementById('status').innerText = "BAĞLANDI!";
-            document.getElementById('status').classList.add('on');
-            addLog("Sistem: Bağlantı başarılı.");
-        };
-        dc.onmessage = e => addLog("Arkadaşın: " + e.data);
+    // KODU İŞLEME (B veya A KİŞİSİ)
+    async function handleInput() {
+        const val = document.getElementById('box').value.trim();
+        if (!val) return log("Hata: Kutu boş!");
+
+        try {
+            const data = JSON.parse(val);
+            if (!pc) { // B KİŞİSİ
+                createPC();
+                pc.ondatachannel = e => {
+                    dc = e.channel;
+                    dc.onopen = () => alert("BAĞLANDI!");
+                    dc.onmessage = e => log("ARKADAŞIN: " + e.data);
+                };
+                await pc.setRemoteDescription(new RTCSessionDescription(data));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                log("Cevap oluşturuldu, adresler bekleniyor...");
+            } else { // A KİŞİSİ CEVABI İŞLER
+                await pc.setRemoteDescription(new RTCSessionDescription(data));
+                log("Cevap kabul edildi.");
+            }
+        } catch (err) {
+            log("GEÇERSİZ KOD: " + err.message);
+        }
     }
-    
+</script>
+
+</body>
+</html>
