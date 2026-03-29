@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link-Up Chat  | Serverless P2P</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f1f5f9; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .container { width: 400px; background: var(--card); padding: 20px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        h2 { text-align: center; color: var(--accent); margin-top: 0; font-size: 1.5rem; }
+        
+        #chat-box { height: 300px; overflow-y: auto; border: 1px solid #334155; border-radius: 8px; padding: 10px; margin-bottom: 15px; background: #0f172a; }
+        .msg { margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: #334155; font-size: 0.9rem; line-height: 1.4; }
+        .msg b { color: var(--accent); font-size: 0.75rem; display: block; }
+
+        .input-group { display: flex; gap: 8px; margin-bottom: 15px; }
+        input { flex: 1; padding: 10px; border-radius: 8px; border: none; background: #0f172a; color: white; outline: none; border: 1px solid #334155; }
+        button { padding: 10px 15px; border-radius: 8px; border: none; background: var(--accent); color: #0f172a; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { opacity: 0.8; }
+
+        .setup-area { border-top: 1px solid #334155; pt-15px; display: flex; flex-direction: column; gap: 8px; }
+        textarea { width: 100%; height: 50px; border-radius: 8px; background: #0f172a; color: #94a3b8; border: 1px solid #334155; font-size: 10px; resize: none; padding: 5px; box-sizing: border-box; }
+        .step-label { font-size: 11px; color: #94a3b8; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>nKaro Chat</h2>
+    
+    <div id="chat-box"></div>
+
+    <div class="input-group">
+        <input type="text" id="msgInp" placeholder="Mesajınızı yazın..." onkeypress="if(event.key==='Enter') send()">
+        <button onclick="send()">Gönder</button>
+    </div>
+
+    <div class="setup-area">
+        <span class="step-label">1. Bağlantıyı Başlat:</span>
+        <button onclick="createOffer()" style="background: #0ea5e9; color: white;">Bağlantı Kodu Üret</button>
+        
+        <span class="step-label">2. Kodu Buraya Yapıştır:</span>
+        <textarea id="sdpBox" placeholder="Arkadaşından gelen kodu buraya yapıştır..."></textarea>
+        <button onclick="processSDP()" style="background: #10b981; color: white;">Kodu İşle ve Bağlan</button>
+    </div>
+</div>
+
+<script>
+    let peer, channel, history = [];
+    const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+
+    function init() {
+        peer = new RTCPeerConnection(config);
+        peer.onicecandidate = e => {
+            if (!e.candidate) document.getElementById('sdpBox').value = btoa(JSON.stringify(peer.localDescription));
+        };
+        peer.ondatachannel = e => { channel = e.channel; setup(); };
+    }
+
+    async function createOffer() {
+        init();
+        channel = peer.createDataChannel("chat");
+        setup();
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
+    }
+
+    async function processSDP() {
+        const val = document.getElementById('sdpBox').value;
+        if (!val) return;
+        const desc = JSON.parse(atob(val));
+        if (!peer) init();
+        await peer.setRemoteDescription(desc);
+        if (desc.type === "offer") {
+            const ans = await peer.createAnswer();
+            await peer.setLocalDescription(ans);
+        }
+    }
+
+    function setup() {
+        channel.onopen = () => addMsg("SİSTEM", "Bağlantı kuruldu! Güvenle konuşabilirsiniz.");
+        channel.onmessage = e => addMsg("Arkadaşın", JSON.parse(e.data).text);
+    }
+
+    function send() {
+        const inp = document.getElementById('msgInp');
+        if (!inp.value || !channel) return;
+        channel.send(JSON.stringify({ text: inp.value }));
+        addMsg("Sen", inp.value);
+        inp.value = "";
+    }
+
+    function addMsg(who, text) {
+        history.push({ who, text, time: new Date().toLocaleTimeString() });
+        if (history.length > 1000) history.shift(); // 1000 mesaj sınırı
+        const box = document.getElementById('chat-box');
+        box.innerHTML = history.map(m => `<div class="msg"><b>${m.who} • ${m.time}</b>${m.text}</div>`).join('');
+        box.scrollTop = box.scrollHeight;
+    }
+</script>
+
+</body>
+</html>
