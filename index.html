@@ -2,147 +2,116 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Link-Up | Serverless P2P</title>
+    <title>Link-Up | Serverless Chat</title>
     <style>
-        :root { --bg: #0b141a; --card: #202c33; --accent: #00a884; --text: #e9edef; --border: #313d45; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 10px; }
-        .app { width: 100%; max-width: 500px; background: var(--card); border-radius: 16px; display: flex; flex-direction: column; height: 90vh; box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden; }
-        
-        /* Header */
-        .header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { margin: 0; font-size: 1.2rem; color: var(--accent); }
-        .status { font-size: 0.8rem; padding: 4px 8px; border-radius: 12px; background: #3b4a54; }
-        .status.online { background: var(--accent); color: #0b141a; font-weight: bold; }
-
-        /* Chat Alanı */
-        #chat { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; background: #111b21; }
-        .msg { max-width: 80%; padding: 8px 12px; border-radius: 8px; font-size: 0.9rem; line-height: 1.4; }
-        .msg.me { align-self: flex-end; background: #005c4b; }
-        .msg.friend { align-self: flex-start; background: #2a3942; }
-        .msg.sys { align-self: center; background: transparent; color: #8696a0; font-size: 0.75rem; border: 1px solid var(--border); }
-
-        /* Bağlantı Paneli */
-        .setup { padding: 15px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; background: #1a252b; }
-        .code-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        label { font-size: 10px; color: #8696a0; text-transform: uppercase; margin-bottom: 4px; display: block; }
-        textarea { width: 100%; height: 50px; background: #0b141a; color: #00a884; border: 1px solid var(--border); border-radius: 6px; padding: 5px; font-size: 9px; resize: none; }
-        
-        .btn { padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; font-size: 0.8rem; }
+        body { font-family: sans-serif; background: #0b141a; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { width: 100%; max-width: 450px; background: #202c33; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        textarea { width: 100%; height: 80px; background: #111b21; color: #00a884; border: 1px solid #313d45; border-radius: 8px; padding: 10px; font-size: 10px; margin: 10px 0; resize: none; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 5px; }
         .btn-offer { background: #0284c7; color: white; }
-        .btn-process { background: var(--accent); color: white; }
-
-        /* Mesaj Girişi */
-        .footer { padding: 10px; display: flex; gap: 8px; background: #202c33; }
-        input { flex: 1; padding: 12px; border-radius: 20px; border: none; background: #2a3942; color: white; outline: none; }
+        .btn-answer { background: #00a884; color: white; }
+        #chat { height: 250px; overflow-y: auto; background: #111b21; border: 1px solid #313d45; padding: 10px; margin: 15px 0; border-radius: 8px; }
+        .input-group { display: flex; gap: 5px; }
+        input { flex: 1; padding: 10px; border-radius: 8px; border: none; background: #2a3942; color: white; outline: none; }
     </style>
 </head>
 <body>
 
-<div class="app">
-    <div class="header">
-        <h1>Link-Up</h1>
-        <div id="status" class="status">Bağlantı Yok</div>
+<div class="container">
+    <h2 style="color:#00a884; text-align:center;">Link-Up</h2>
+    
+    <div id="setup">
+        <label>1. Kendi Kodun (Kopyala Arkadaşına At):</label>
+        <textarea id="localCode" readonly placeholder="Kod burada oluşacak..."></textarea>
+        <button class="btn btn-offer" onclick="setupOffer()">KOD ÜRET (BAŞLAT)</button>
+
+        <label style="display:block; margin-top:15px;">2. Arkadaştan Gelen Kod:</label>
+        <textarea id="remoteCode" placeholder="Arkadaşının kodunu buraya yapıştır..."></textarea>
+        <button class="btn btn-answer" onclick="handleRemoteCode()">KODU İŞLE / BAĞLAN</button>
     </div>
 
-    <div class="setup" id="setupPanel">
-        <div class="code-row">
-            <div>
-                <label>Benim Kodum:</label>
-                <textarea id="myCode" readonly placeholder="Kod burada oluşacak..."></textarea>
-                <button class="btn btn-offer" onclick="startOffer()" id="offerBtn">1. Kod Üret</button>
-            </div>
-            <div>
-                <label>Arkadaştan Gelen:</label>
-                <textarea id="friendCode" placeholder="Kodu buraya yapıştır..."></textarea>
-                <button class="btn btn-process" onclick="handleInput()">2. Kodu İşle</button>
-            </div>
+    <div id="chat-area" style="display:none;">
+        <div id="chat"></div>
+        <div class="input-group">
+            <input type="text" id="msgInp" placeholder="Mesaj yaz..." onkeypress="if(event.key==='Enter') send()">
+            <button class="btn btn-answer" style="width:auto;" onclick="send()">Gönder</button>
         </div>
-    </div>
-
-    <div id="chat">
-        <div class="msg sys">Bağlanmak için 'Kod Üret' butonuna basın.</div>
-    </div>
-
-    <div class="footer">
-        <input type="text" id="msgInp" placeholder="Mesaj yazın..." onkeypress="if(event.key==='Enter') send()" disabled>
-        <button class="btn btn-process" id="sendBtn" onclick="send()" disabled>Gönder</button>
     </div>
 </div>
 
 <script>
-    let pc, dc;
-    const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+    let pc;
+    let dc;
 
-    function createPC() {
-        pc = new RTCPeerConnection(config);
+    function createPeer() {
+        pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+        
         pc.onicecandidate = e => {
             if (!e.candidate) {
-                document.getElementById('myCode').value = JSON.stringify(pc.localDescription);
-                document.getElementById('myCode').select();
-                addMsg("sys", "Kendi kodun hazır! Kopyala ve arkadaşına at.");
+                document.getElementById('localCode').value = JSON.stringify(pc.localDescription);
+                document.getElementById('localCode').select();
             }
         };
+
         pc.oniceconnectionstatechange = () => {
-            const s = document.getElementById('status');
-            s.innerText = pc.iceConnectionState;
             if(pc.iceConnectionState === 'connected') {
-                s.innerText = "Çevrimiçi";
-                s.className = "status online";
-                document.getElementById('setupPanel').style.display = "none";
-                document.getElementById('msgInp').disabled = false;
-                document.getElementById('sendBtn').disabled = false;
+                document.getElementById('setup').style.display = 'none';
+                document.getElementById('chat-area').style.display = 'block';
             }
         };
     }
 
-    async function startOffer() {
-        createPC();
+    // TEKLİF VEREN (A KİŞİSİ)
+    async function setupOffer() {
+        createPeer();
         dc = pc.createDataChannel("chat");
-        setupDC();
+        setupChat(dc);
+
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        document.getElementById('offerBtn').disabled = true;
     }
 
-    async function handleInput() {
-        const val = document.getElementById('friendCode').value.trim();
-        if (!val) return;
-        try {
-            const data = JSON.parse(val);
-            if (!pc) {
-                createPC();
-                pc.ondatachannel = e => { dc = e.channel; setupDC(); };
-                await pc.setRemoteDescription(new RTCSessionDescription(data));
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                addMsg("sys", "Cevap kodu üretildi, arkadaşına geri gönder.");
-            } else {
-                await pc.setRemoteDescription(new RTCSessionDescription(data));
-            }
-        } catch (e) { alert("Geçersiz kod!"); }
+    // KODU İŞLEYEN (B KİŞİSİ VEYA A'NIN CEVABI)
+    async function handleRemoteCode() {
+        const remoteValue = document.getElementById('remoteCode').value.trim();
+        if(!remoteValue) return alert("Kod kutusu boş!");
+
+        const desc = new RTCSessionDescription(JSON.parse(remoteValue));
+
+        if (!pc) { // Eğer henüz başlatılmamışsa (B KİŞİSİ)
+            createPeer();
+            pc.ondatachannel = e => {
+                dc = e.channel;
+                setupChat(dc);
+            };
+            await pc.setRemoteDescription(desc);
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+        } else { // A KİŞİSİ (CEVABI İŞLER)
+            await pc.setRemoteDescription(desc);
+        }
     }
 
-    function setupDC() {
-        dc.onmessage = e => addMsg("friend", e.data);
+    function setupChat(channel) {
+        channel.onmessage = e => addMsg("Arkadaşın", e.data);
+        channel.onopen = () => console.log("Bağlantı Açıldı!");
     }
 
     function send() {
         const inp = document.getElementById('msgInp');
         if (inp.value && dc && dc.readyState === "open") {
             dc.send(inp.value);
-            addMsg("me", inp.value);
+            addMsg("Sen", inp.value);
             inp.value = "";
         }
     }
 
-    function addMsg(who, text) {
-        const div = document.createElement('div');
-        div.className = `msg ${who}`;
-        div.innerText = text;
-        document.getElementById('chat').appendChild(div);
-        document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+    function addMsg(user, text) {
+        const chat = document.getElementById('chat');
+        chat.innerHTML += `<div><b>${user}:</b> ${text}</div>`;
+        chat.scrollTop = chat.scrollHeight;
     }
 </script>
+
 </body>
 </html>
