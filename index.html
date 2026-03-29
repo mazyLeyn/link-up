@@ -3,46 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Link-Up Chat  | Serverless P2P</title>
+    <title>Link-Up | Serverless P2P Chat</title>
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f1f5f9; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .container { width: 400px; background: var(--card); padding: 20px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
-        h2 { text-align: center; color: var(--accent); margin-top: 0; font-size: 1.5rem; }
+        /* Modern Renk Paleti ve Reset */
+        :root {
+            --bg: #111b21;       /* WhatsApp Dark Arkaplan */
+            --card-bg: #202c33; /* Mesaj Balonu Sol */
+            --my-msg-bg: #005c4b; /* Mesaj Balonu Sağ (Ben) */
+            --accent: #00a884;    /* Yeşil Vurgu */
+            --text-main: #e9edef;
+            --text-sec: #8696a0;
+            --border: #313d45;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text-main); display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+
+        /* Ana Konteyner */
+        .app-container { width: 450px; height: 90vh; background: #0b141a; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,0.5); border: 1px solid var(--border); }
+
+        /* Başlık Alanı */
+        .header { background: var(--card-bg); padding: 15px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+        .header h1 { font-size: 1.3rem; color: var(--accent); }
+        .status { font-size: 0.8rem; color: var(--text-sec); display: flex; align-items: center; gap: 5px; }
+        .status-dot { width: 10px; height: 10px; background: #ef4444; border-radius: 50%; transition: background 0.3s; }
+        .status.connected .status-dot { background: var(--accent); }
+
+        /* Mesajlaşma Alanı */
+        #chat-box { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; background-image: url('https://user-images.githubusercontent.com/1500684/157742111-a83d1c1d-1510-47b1-94f8-1d227a9c3397.png'); background-opacity: 0.05; }
+        #chat-box::-webkit-scrollbar { width: 6px; }
+        #chat-box::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+        /* Mesaj Balonları */
+        .msg { max-width: 80%; padding: 8px 12px; border-radius: 8px; font-size: 0.95rem; line-height: 1.4; position: relative; word-wrap: break-word; }
+        .msg .time { font-size: 0.7rem; color: rgba(255,255,255,0.6); margin-top: 4px; display: block; text-align: right; }
         
-        #chat-box { height: 300px; overflow-y: auto; border: 1px solid #334155; border-radius: 8px; padding: 10px; margin-bottom: 15px; background: #0f172a; }
-        .msg { margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: #334155; font-size: 0.9rem; line-height: 1.4; }
-        .msg b { color: var(--accent); font-size: 0.75rem; display: block; }
+        .msg.friend { background: var(--card-bg); align-self: flex-start; border-top-left-radius: 0; }
+        .msg.me { background: var(--my-msg-bg); align-self: flex-end; border-top-right-radius: 0; }
+        .msg.system { background: rgba(255,255,255,0.05); align-self: center; text-align: center; color: var(--text-sec); font-size: 0.8rem; border-radius: 15px; max-width: 90%; }
 
-        .input-group { display: flex; gap: 8px; margin-bottom: 15px; }
-        input { flex: 1; padding: 10px; border-radius: 8px; border: none; background: #0f172a; color: white; outline: none; border: 1px solid #334155; }
-        button { padding: 10px 15px; border-radius: 8px; border: none; background: var(--accent); color: #0f172a; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        button:hover { opacity: 0.8; }
+        /* Mesaj Giriş Alanı */
+        .input-area { background: var(--card-bg); padding: 10px 15px; display: flex; gap: 10px; align-items: center; border-top: 1px solid var(--border); }
+        input#msgInp { flex: 1; padding: 12px; border-radius: 20px; border: none; background: #2a3942; color: white; outline: none; font-size: 0.95rem; }
+        button#sendBtn { background: none; border: none; cursor: pointer; color: var(--accent); font-size: 1.5rem; padding: 0 5px; transition: transform 0.2s; }
+        button#sendBtn:hover { transform: scale(1.1); }
 
-        .setup-area { border-top: 1px solid #334155; pt-15px; display: flex; flex-direction: column; gap: 8px; }
-        textarea { width: 100%; height: 50px; border-radius: 8px; background: #0f172a; color: #94a3b8; border: 1px solid #334155; font-size: 10px; resize: none; padding: 5px; box-sizing: border-box; }
-        .step-label { font-size: 11px; color: #94a3b8; margin-top: 5px; }
+        /* Bağlantı Ayarları Paneli */
+        .setup-panel { background: #1a252b; padding: 15px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+        .setup-header { font-size: 0.85rem; color: var(--text-sec); font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .setup-controls { display: flex; gap: 8px; }
+        textarea#sdpBox { flex: 1; height: 40px; border-radius: 8px; background: #0b141a; color: var(--text-sec); border: 1px solid var(--border); font-size: 10px; resize: none; padding: 5px; outline: none; }
+        .action-btn { padding: 8px 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 0.8rem; transition: 0.3s; color: white; }
+        .btn-offer { background: #0284c7; }
+        .btn-connect { background: var(--accent); }
+        .action-btn:hover { opacity: 0.8; }
+        .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>Link-Up Chat</h2>
+<div class="app-container">
+    <div class="header">
+        <h1>Link-Up</h1>
+        <div class="status" id="statusLabel">
+            <div class="status-dot"></div>
+            <span>Çevrimdışı</span>
+        </div>
+    </div>
     
-    <div id="chat-box"></div>
-
-    <div class="input-group">
-        <input type="text" id="msgInp" placeholder="Mesajınızı yazın..." onkeypress="if(event.key==='Enter') send()">
-        <button onclick="send()">Gönder</button>
+    <div id="chat-box">
+        <div class="msg system">Bağlantı kurmak için aşağıdaki panelden 'Kod Üret' butonuna basın.</div>
     </div>
 
-    <div class="setup-area">
-        <span class="step-label">1. Bağlantıyı Başlat:</span>
-        <button onclick="createOffer()" style="background: #0ea5e9; color: white;">Bağlantı Kodu Üret</button>
-        
-        <span class="step-label">2. Kodu Buraya Yapıştır:</span>
-        <textarea id="sdpBox" placeholder="Arkadaşından gelen kodu buraya yapıştır..."></textarea>
-        <button onclick="processSDP()" style="background: #10b981; color: white;">Kodu İşle ve Bağlan</button>
+    <div class="input-area">
+        <input type="text" id="msgInp" placeholder="Mesaj yazın..." onkeypress="if(event.key==='Enter') send()" disabled>
+        <button id="sendBtn" onclick="send()" disabled>&#10148;</button> </div>
+
+    <div class="setup-panel">
+        <div class="setup-header">Bağlantı Ayarları</div>
+        <div class="setup-controls">
+            <button onclick="createOffer()" class="action-btn btn-offer" id="offerBtn">Kod Üret</button>
+            <textarea id="sdpBox" placeholder="Kodu buraya yapıştır..."></textarea>
+            <button onclick="processSDP()" class="action-btn btn-connect" id="connectBtn">Bağlan</button>
+        </div>
     </div>
 </div>
 
@@ -50,10 +93,24 @@
     let peer, channel, history = [];
     const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
+    const dom = {
+        chat: document.getElementById('chat-box'),
+        inp: document.getElementById('msgInp'),
+        sdp: document.getElementById('sdpBox'),
+        status: document.getElementById('statusLabel'),
+        sendBtn: document.getElementById('sendBtn'),
+        offerBtn: document.getElementById('offerBtn'),
+        connectBtn: document.getElementById('connectBtn')
+    };
+
     function init() {
         peer = new RTCPeerConnection(config);
         peer.onicecandidate = e => {
-            if (!e.candidate) document.getElementById('sdpBox').value = btoa(JSON.stringify(peer.localDescription));
+            if (!e.candidate) {
+                dom.sdp.value = btoa(JSON.stringify(peer.localDescription));
+                dom.sdp.select(); // Kodu otomatik seç
+                addMsg("system", "Kod üretildi! Bu kodu kopyalayıp arkadaşınıza gönderin.");
+            }
         };
         peer.ondatachannel = e => { channel = e.channel; setup(); };
     }
@@ -64,39 +121,73 @@
         setup();
         const offer = await peer.createOffer();
         await peer.setLocalDescription(offer);
+        dom.offerBtn.disabled = true; // Tekrar basılmasını engelle
     }
 
     async function processSDP() {
-        const val = document.getElementById('sdpBox').value;
+        const val = dom.sdp.value;
         if (!val) return;
-        const desc = JSON.parse(atob(val));
-        if (!peer) init();
-        await peer.setRemoteDescription(desc);
-        if (desc.type === "offer") {
-            const ans = await peer.createAnswer();
-            await peer.setLocalDescription(ans);
+        try {
+            const desc = JSON.parse(atob(val));
+            if (!peer) init();
+            await peer.setRemoteDescription(desc);
+            if (desc.type === "offer") {
+                const ans = await peer.createAnswer();
+                await peer.setLocalDescription(ans);
+                addMsg("system", "Kod işlendi. Oluşan yeni kodu arkadaşınıza geri gönderin.");
+            } else if (desc.type === "answer") {
+                addMsg("system", "Cevap kodu işleniyor...");
+            }
+        } catch (e) {
+            addMsg("system", "HATA: Geçersiz bağlantı kodu.");
         }
     }
 
     function setup() {
-        channel.onopen = () => addMsg("SİSTEM", "Bağlantı kuruldu! Güvenle konuşabilirsiniz.");
-        channel.onmessage = e => addMsg("Arkadaşın", JSON.parse(e.data).text);
+        channel.onopen = () => {
+            addMsg("system", "Bağlantı kuruldu! Güvenle konuşabilirsiniz.");
+            dom.status.classList.add('connected');
+            dom.status.querySelector('span').innerText = "Çevrimiçi";
+            dom.inp.disabled = false;
+            dom.sendBtn.disabled = false;
+            dom.inp.focus();
+            dom.offerBtn.disabled = true;
+            dom.connectBtn.disabled = true;
+            dom.sdp.value = ""; // Kutuyu temizle
+        };
+        channel.onmessage = e => addMsg("friend", JSON.parse(e.data).text);
+        channel.onclose = () => {
+            addMsg("system", "Bağlantı koptu.");
+            dom.status.classList.remove('connected');
+            dom.status.querySelector('span').innerText = "Çevrimdışı";
+            dom.inp.disabled = true;
+            dom.sendBtn.disabled = true;
+        }
     }
 
     function send() {
-        const inp = document.getElementById('msgInp');
-        if (!inp.value || !channel) return;
-        channel.send(JSON.stringify({ text: inp.value }));
-        addMsg("Sen", inp.value);
-        inp.value = "";
+        if (!dom.inp.value || !channel || channel.readyState !== "open") return;
+        const text = dom.inp.value;
+        channel.send(JSON.stringify({ text }));
+        addMsg("me", text);
+        dom.inp.value = "";
     }
 
     function addMsg(who, text) {
-        history.push({ who, text, time: new Date().toLocaleTimeString() });
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        history.push({ who, text, time });
         if (history.length > 1000) history.shift(); // 1000 mesaj sınırı
-        const box = document.getElementById('chat-box');
-        box.innerHTML = history.map(m => `<div class="msg"><b>${m.who} • ${m.time}</b>${m.text}</div>`).join('');
-        box.scrollTop = box.scrollHeight;
+
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `msg ${who}`;
+        if (who === "system") {
+            msgDiv.innerText = text;
+        } else {
+            msgDiv.innerHTML = `${text}<span class="time">${time}</span>`;
+        }
+        
+        dom.chat.appendChild(msgDiv);
+        dom.chat.scrollTop = dom.chat.scrollHeight;
     }
 </script>
 
